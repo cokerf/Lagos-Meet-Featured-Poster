@@ -4,7 +4,7 @@ let articles = [], selected = null, format = 'portrait', imageReady = false, loa
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
 function scale() {
- const [w,h]=dimensions[format];const width=Math.min(innerWidth-32,520,(Math.max(220,innerHeight-220))*w/h);
+ const [w,h]=dimensions[format];const panelHeight=document.querySelector('.controls').getBoundingClientRect().height;document.documentElement.style.setProperty('--panel-space',(panelHeight+48)+'px');const width=Math.max(1,Math.min(innerWidth-32,520,Math.max(120,(window.visualViewport?.height||innerHeight)-panelHeight-80)*w/h));
  $('previewWrapper').style.width=width+'px';$('previewWrapper').style.height=width*h/w+'px';
  $('postCard').style.width=w+'px';$('postCard').style.height=h+'px';$('postCard').style.transform=`scale(${width/w})`;
 }
@@ -63,10 +63,32 @@ async function setImage(src) {
  }catch(error){if(ticket!==generation)return;$('imageHint').textContent=error.message;toast(error.message);}
 }
 async function selectArticle(article) {
- selected=article;$('previewTitle').textContent=article.title;$('previewDate').textContent=dateLabel(article.date);$('selected').textContent=article.title;$('articleDialog').close();
+ selected=article;$('previewTitle').textContent=article.title;$('previewDate').textContent=dateLabel(article.date);$('articleDialog').close();
  await setImage(article.image); // Image endpoint re-fetches the page and fresh Notion file URL.
 }
-$('openArticles').onclick=()=>{$('articleDialog').showModal();if(!articles.length&&!loading)loadArticles();$('search').focus();};
+function openArticlePicker() {
+ if(!$('articleDialog').open)$('articleDialog').showModal();
+ if(!articles.length&&!loading)loadArticles();
+ $('search').focus();
+}
+$('openArticles').onclick=openArticlePicker;
+$('posterSearch').onclick=openArticlePicker;
+const preferredMode=window.matchMedia('(prefers-color-scheme: dark)');
+let savedMode=null;
+try{savedMode=localStorage.getItem('lagos-meet-mode');}catch{}
+function applyMode(mode) {
+ document.documentElement.dataset.mode=mode;
+ const dark=mode==='dark';
+ $('modeToggle').textContent=dark?'Light mode':'Dark mode';
+ $('modeToggle').setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');
+ $('modeToggle').setAttribute('aria-pressed',String(dark));
+}
+applyMode(savedMode==='light'||savedMode==='dark'?savedMode:preferredMode.matches?'dark':'light');
+$('modeToggle').onclick=()=>{
+ savedMode=document.documentElement.dataset.mode==='dark'?'light':'dark';
+ applyMode(savedMode);try{localStorage.setItem('lagos-meet-mode',savedMode);}catch{}
+};
+preferredMode.addEventListener('change',event=>{if(!savedMode)applyMode(event.matches?'dark':'light');});
 $('closeArticles').onclick=()=>$('articleDialog').close();$('refresh').onclick=loadArticles;$('search').oninput=renderArticles;
 for(const button of document.querySelectorAll('[data-format]'))button.onclick=()=>{format=button.dataset.format;$('postCard').className=format;for(const b of document.querySelectorAll('[data-format]'))b.setAttribute('aria-pressed',String(b===button));scale();};
 $('bgColor').oninput=event=>theme(event.target.value);$('autoColor').onclick=matchColour;
@@ -98,4 +120,6 @@ $('download').onclick=async()=>{
   const link=document.createElement('a');const url=URL.createObjectURL(blob);link.href=url;link.download=`LagosMeet-${format}-${selected?.id||Date.now()}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);toast('Poster exported');
  }catch(error){toast(error.message);}finally{button.disabled=!imageReady;button.textContent='Export PNG';}
 };
+new ResizeObserver(scale).observe(document.querySelector('.controls'));
+window.visualViewport?.addEventListener('resize',scale);
 window.addEventListener('resize',scale);document.fonts.ready.then(scale);scale();
