@@ -3,3 +3,40 @@
 /* Keep headline/date black and image sizing independent of intrinsic dimensions. */
 #previewTitle,#previewDate{color:#000000;-webkit-text-fill-color:#000000}
 #previewImage{position:absolute;inset:0}
+
+/* Application theme: the poster remains a white print surface in either mode. */
+:root{--app-bg:#e5e5e7;--app-text:#141414;--panel:#ffffffed;--border:#d4d4d8;--button:#eee;--hover:#ddd;--muted:#666;--field:#fff;--accent:#111;--accent-text:#fff;--panel-space:160px;color-scheme:light}
+:root[data-mode=dark]{--app-bg:#151618;--app-text:#f4f4f5;--panel:#222326f5;--border:#414248;--button:#34353a;--hover:#46474d;--muted:#b5b5bd;--field:#222326;--accent:#fafafa;--accent-text:#111;color-scheme:dark}
+body{min-height:100dvh;background:var(--app-bg);color:var(--app-text)}
+main{min-height:100dvh;align-items:center;padding:24px 16px var(--panel-space)}
+.controls{width:max-content;max-width:calc(100vw - 24px);bottom:max(12px,env(safe-area-inset-bottom));background:var(--panel);border-color:var(--border);gap:8px;padding:10px 14px;border-radius:24px;z-index:10}
+.panel-logo{width:90px;height:24px;object-fit:contain;margin:0 6px}
+[data-mode=dark] .panel-logo{filter:brightness(0) invert(1)}
+.controls button,dialog button{background:var(--button);color:var(--app-text);min-height:44px}
+.controls button:hover,dialog button:hover{background:var(--hover)}
+.controls .formats button[aria-pressed=true],.controls #download{background:var(--accent);color:var(--accent-text)}
+dialog{background:var(--field);color:var(--app-text);border-color:var(--border);max-height:calc(100dvh - 32px)}
+.dialog-head p,#loadStatus,.article-row small{color:var(--muted)}
+#search{background:var(--field);color:var(--app-text);border-color:var(--border);font-size:16px}
+#search::placeholder{color:var(--muted)}
+dialog .article-row{background:var(--field);color:var(--app-text);border-color:var(--border)}
+#postCard{color:#000;color-scheme:light}
+#posterSearch{padding:0;display:grid;place-items:center;width:64px;height:64px;background:transparent;color:#000;border-radius:50%;flex-shrink:0}
+#posterSearch:hover{background:#f4f4f4}
+.landscape #posterSearch{width:32px;height:32px}
+.landscape #posterSearch svg{width:20px;height:20px}
+.story #posterSearch svg{width:42px;height:42px}
+.is-exporting #posterSearch{background:transparent!important;outline:none!important}
+@media(max-width:720px){
+ .controls{width:calc(100vw - 24px);gap:6px;padding:10px;justify-content:center}
+ .panel-logo{width:78px;margin:0 4px}
+ .controls button{padding:9px 12px}
+ .formats{justify-content:center}
+}
+@media(max-width:420px){
+ .controls{gap:5px}
+ .controls button{padding:9px 10px;font-size:11px}
+ .panel-logo{width:70px}
+ dialog{padding:18px}
+ .search-row{gap:6px}
+}
