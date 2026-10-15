@@ -1,0 +1,1 @@
+{"name":"lagos-meet-generator","private":true,"type":"module","scripts":{"dev":"npx netlify-cli dev","test":"node --test","build":"node --check public/app.js && node --check netlify/functions/articles.mjs && node --check netlify/functions/image.mjs"},"engines":{"node":">=22"}}
