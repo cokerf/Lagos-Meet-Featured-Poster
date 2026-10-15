@@ -1,17 +1,17 @@
 'use strict';
 const $ = id => document.getElementById(id);
-let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL;
+let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, imagePosition={x:50,y:50};
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
 function scale() {
- const [w,h]=dimensions[format];const panelHeight=document.querySelector('.controls').getBoundingClientRect().height;document.documentElement.style.setProperty('--panel-space',(panelHeight+48)+'px');const width=Math.max(1,Math.min(innerWidth-32,520,Math.max(120,(window.visualViewport?.height||innerHeight)-panelHeight-80)*w/h));
+ const [w,h]=dimensions[format];const panelHeight=document.querySelector('.controls').getBoundingClientRect().height;document.documentElement.style.setProperty('--panel-space',(panelHeight+48)+'px');const width=Math.max(1,Math.min(innerWidth-100,520,Math.max(120,(window.visualViewport?.height||innerHeight)-panelHeight-140)*w/h));
  $('previewWrapper').style.width=width+'px';$('previewWrapper').style.height=width*h/w+'px';
  $('postCard').style.width=w+'px';$('postCard').style.height=h+'px';$('postCard').style.transform=`scale(${width/w})`;
 }
-function coverCrop(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+function coverCrop(sourceWidth, sourceHeight, targetWidth, targetHeight, x=50, y=50) {
  const ratio=Math.max(targetWidth/sourceWidth,targetHeight/sourceHeight);
  const width=Math.min(sourceWidth,targetWidth/ratio),height=Math.min(sourceHeight,targetHeight/ratio);
- return [(sourceWidth-width)/2,(sourceHeight-height)/2,width,height];
+ return [(sourceWidth-width)*x/100,(sourceHeight-height)*y/100,width,height];
 }
 function dateLabel(date) {return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date(date.length===10?date+'T12:00:00+01:00':date));}
 function renderArticles() {
@@ -39,7 +39,39 @@ async function loadArticles() {
  }catch(error){$('loadStatus').textContent=error.message;loading=false;}
  finally{$('refresh').disabled=false;}
 }
-function theme(hex){$('postCard').style.backgroundColor=hex;$('bgColor').value=hex;}
+function theme(hex){
+ $('postCard').style.backgroundColor=hex;$('bgColor').value=hex;
+ $('hexColour').value=hex;$('hexColour').setCustomValidity('');
+ $('colourSwatch').style.background=hex;$('colourPreview').style.background=hex;
+ const [h,s,l]=hexToHsl(hex);$('hue').value=h;$('saturation').value=s;$('lightness').value=l;
+ $('hueValue').textContent=Math.round(h)+'°';$('satValue').textContent=Math.round(s)+'%';$('lightValue').textContent=Math.round(l)+'%';
+ $('saturation').style.background='linear-gradient(to right,hsl('+h+' 0% 50%),hsl('+h+' 100% 50%))';
+ $('lightness').style.background='linear-gradient(to right,#000,hsl('+h+' '+s+'% 50%),#fff)';
+}
+function hexToHsl(hex){
+ const [r,g,b]=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255),max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min,l=(max+min)/2;
+ let h=0,s=0;if(d){s=d/(1-Math.abs(2*l-1));h=(max===r?(g-b)/d+(g<b?6:0):max===g?(b-r)/d+2:(r-g)/d+4)*60;}return [h,s*100,l*100];
+}
+function hslToHex(h,s,l){
+ s/=100;l/=100;const a=s*Math.min(l,1-l);
+ return '#'+[0,8,4].map(n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0');}).join('');
+}
+function positionImage(){
+ imagePosition={x:Number($('imageX').value),y:Number($('imageY').value)};
+ $('previewImage').style.objectPosition=imagePosition.x+'% '+imagePosition.y+'%';
+ $('xValue').textContent=imagePosition.x+'%';$('yValue').textContent=imagePosition.y+'%';
+}
+$('imageX').oninput=positionImage;$('imageY').oninput=positionImage;
+$('resetPosition').onclick=()=>{$('imageX').value=50;$('imageY').value=50;positionImage();};
+function colourPanel(open){$('colourPanel').hidden=!open;$('colourTrigger').setAttribute('aria-expanded',String(open));}
+$('colourTrigger').onclick=()=>colourPanel($('colourPanel').hidden);
+$('closeColour').onclick=()=>colourPanel(false);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')colourPanel(false);});
+document.addEventListener('click',e=>{if(!e.target.closest('#colourPanel,#colourTrigger'))colourPanel(false);});
+for(const id of ['hue','saturation','lightness'])$(id).oninput=()=>theme(hslToHex(Number($('hue').value),Number($('saturation').value),Number($('lightness').value)));
+$('hexColour').oninput=e=>{const value=e.target.value;if(/^#[0-9a-f]{6}$/i.test(value))theme(value.toLowerCase());else e.target.setCustomValidity('Enter a six-digit hex colour, such as #163a4d');};
+for(const button of document.querySelectorAll('[data-colour]')){button.style.background=button.dataset.colour;button.onclick=()=>theme(button.dataset.colour);}
+$('panelMatch').onclick=matchColour;theme('#163a4d');positionImage();
 function matchColour() {
  if(!imageReady)return;
  try {
@@ -51,7 +83,7 @@ function matchColour() {
  }catch{toast('Could not sample this image. Choose a colour manually.');}
 }
 async function setImage(src) {
- const ticket=++generation;imageReady=false;$('download').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
+ $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;$('download').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
  try {
   let blob;
   if(src instanceof Blob)blob=src;
@@ -113,7 +145,7 @@ $('download').onclick=async()=>{
     const crop=doc.createElement('canvas');
     crop.width=Math.max(1,Math.round(frame.clientWidth));crop.height=Math.max(1,Math.round(frame.clientHeight));
     crop.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;';
-    crop.getContext('2d').drawImage(source,...coverCrop(source.naturalWidth,source.naturalHeight,crop.width,crop.height),0,0,crop.width,crop.height);
+    crop.getContext('2d').drawImage(source,...coverCrop(source.naturalWidth,source.naturalHeight,crop.width,crop.height,imagePosition.x,imagePosition.y),0,0,crop.width,crop.height);
     image.replaceWith(crop);
    }});
   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('PNG export failed');
