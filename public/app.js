@@ -169,14 +169,28 @@ $('download').onclick=async()=>{
  }catch(error){toast(error.message);}finally{exportLock(false);$('download').textContent='Export PNG';}
 };
 function createBadgeMotion() {
- const state={dateY:0,badgeY:1,reveal:0,text:0};
+ const state={dateY:0,badgeY:1,reveal:0,text:0,imageProgress:0};
  const timeline=anime.timeline({autoplay:false,easing:'easeInOutQuint'});
  timeline.add({targets:state,dateY:[0,-1],duration:720},1400)
  .add({targets:state,badgeY:[1,0],reveal:[0,1],duration:900,easing:'easeOutQuint'},1610)
  .add({targets:state,text:[0,1],duration:860,easing:'easeOutCubic'},1740)
  .add({targets:state,badgeY:[0,-1],reveal:[1,0],duration:800,easing:'easeInOutQuint'},4020)
- .add({targets:state,dateY:[1,0],duration:900,easing:'easeOutQuint'},4290);
+ .add({targets:state,dateY:[1,0],duration:900,easing:'easeOutQuint'},4290)
+ .add({targets:state,imageProgress:[0,1],duration:3000,easing:'easeInOutSine'},0)
+ .add({targets:state,imageProgress:[1,0],duration:3000,easing:'easeInOutSine'},3000);
  return {state,timeline};
+}
+function imageMotionCrop(sw,sh,width,height,x,y,progress) {
+ const [sx,sy,cw,ch]=coverCrop(sw,sh,width,height,x,y);
+ const zoom=1+.065*progress,w=cw/zoom,h=ch/zoom;
+ // Travel stays inside the user's chosen crop, even at the image edges.
+ return [sx+(cw-w)*(.5+.12*progress),sy+(ch-h)*(.5-.08*progress),w,h];
+}
+function drawImageMotion(ctx,source,frame,position,progress) {
+ ctx.save();ctx.beginPath();ctx.roundRect(frame.x,frame.y,frame.width,frame.height,frame.radius);ctx.clip();
+ ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+ ctx.drawImage(source,...imageMotionCrop(source.naturalWidth,source.naturalHeight,frame.width,frame.height,position.x,position.y,progress),frame.x,frame.y,frame.width,frame.height);
+ ctx.restore();
 }
 function drawBadgeMotion(ctx,motion,cx,cy,fontSize,family,dateText,colour,textColour) {
  ctx.font=fontSize+'px '+family;ctx.textBaseline='middle';ctx.textAlign='center';
@@ -216,6 +230,9 @@ $('downloadVideo').onclick=async()=>{
   const base=await capturePoster(true),canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
   const ctx=canvas.getContext('2d'),date=$('previewDate'),cardRect=$('postCard').getBoundingClientRect(),rect=date.getBoundingClientRect();
   const scaleFactor=width/cardRect.width,cx=(rect.left+rect.width/2-cardRect.left)*scaleFactor,cy=(rect.top+rect.height/2-cardRect.top)*scaleFactor;
+  const artwork=$('artworkContainer'),artRect=artwork.getBoundingClientRect();
+  const imageFrame={x:(artRect.left-cardRect.left)*scaleFactor,y:(artRect.top-cardRect.top)*scaleFactor,width:artRect.width*scaleFactor,height:artRect.height*scaleFactor,radius:parseFloat(getComputedStyle(artwork).borderTopLeftRadius)||0};
+  const exportImage=$('previewImage'),exportPosition={...imagePosition};
   const fontSize=parseFloat(getComputedStyle(date).fontSize),family=getComputedStyle(date).fontFamily,dateText=date.textContent.trim();
   const colour=$('bgColor').value;
   const channels=[1,3,5].map(i=>parseInt(colour.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4);
@@ -229,6 +246,7 @@ $('downloadVideo').onclick=async()=>{
    if(encodingError)throw encodingError;
    ctx.globalAlpha=1;ctx.fillStyle=colour;ctx.fillRect(0,0,width,height);ctx.drawImage(base,0,0);
    motion.timeline.seek(i*1000/fps);
+   drawImageMotion(ctx,exportImage,imageFrame,exportPosition,motion.state.imageProgress);
    drawBadgeMotion(ctx,motion.state,cx,cy,fontSize,family,dateText,colour,badgeTextColour);
    const frame=new VideoFrame(canvas,{timestamp:Math.round(i*1000000/fps),duration:Math.round(1000000/fps)});
    try{encoder.encode(frame,{keyFrame:i%60===0});}finally{frame.close();}
