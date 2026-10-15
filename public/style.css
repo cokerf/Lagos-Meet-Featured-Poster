@@ -40,3 +40,42 @@ dialog .article-row{background:var(--field);color:var(--app-text);border-color:v
  dialog{padding:18px}
  .search-row{gap:6px}
 }
+
+/* Precise image framing and colour studio. */
+.panel-logo{width:130px;height:34px}
+.position-control{position:fixed;z-index:8;background:var(--panel);border:1px solid var(--border);box-shadow:0 8px 30px #0001;border-radius:18px;color:var(--app-text);font-size:11px}
+.position-control label{font-weight:500;letter-spacing:.02em}
+.position-x{top:max(14px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(350px,calc(100vw - 100px));padding:10px 16px}
+.position-x label{display:flex;justify-content:space-between;margin-bottom:8px}
+.position-y{left:10px;top:45%;transform:translateY(-50%);padding:14px 8px;display:flex;align-items:center;gap:10px;flex-direction:column;width:50px}
+.position-y label{writing-mode:vertical-rl}
+.position-y input{writing-mode:vertical-lr;direction:rtl;width:20px;height:min(200px,30dvh)}
+.position-y button{padding:0;width:30px;height:30px;background:var(--button);color:var(--app-text)}
+input[type=range]{appearance:none;-webkit-appearance:none;cursor:pointer;background:var(--border);border-radius:999px;accent-color:#a898ed}
+.position-x input{width:100%;height:5px;margin:8px 0}
+input[type=range]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:#fff;border:3px solid #8671c7;box-shadow:0 2px 8px #0003}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid #8671c7;box-shadow:0 2px 8px #0003}
+.controls .colour-trigger{padding:7px;width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:transparent;display:grid;place-items:center}
+#colourSwatch{width:28px;height:28px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1px #ffffff40}
+.colour-panel[hidden]{display:none}
+.colour-panel{position:fixed;bottom:var(--panel-space);right:max(16px,calc((100vw - 850px)/2));width:min(330px,calc(100vw - 32px));z-index:20;border:1px solid var(--border);background:var(--panel);color:var(--app-text);border-radius:24px;padding:22px;box-shadow:0 20px 70px #0003;backdrop-filter:blur(22px);max-height:calc(100dvh - var(--panel-space) - 20px);overflow:auto}
+.colour-heading{display:flex;justify-content:space-between;align-items:start;margin-bottom:18px}
+.colour-heading small{font-size:9px;letter-spacing:.17em;color:var(--muted)}
+.colour-heading h2{font-size:18px;margin:5px 0 0}
+.colour-heading button{padding:6px 10px;background:var(--button);color:var(--app-text)}
+#colourPreview{height:70px;border-radius:14px;margin-bottom:18px;border:1px solid #ffffff20}
+.colour-panel>label{display:flex;justify-content:space-between;font-size:11px;margin:14px 0 10px}
+.colour-panel input[type=range]{width:100%;height:9px;margin:3px 0 10px}
+#hue{background:linear-gradient(to right,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)}
+.hex-row{display:flex;align-items:center;gap:10px;border:1px solid var(--border);padding:8px 12px;border-radius:12px;margin-top:16px;font-size:11px}
+#hexColour{min-width:0;width:100%;border:0;outline:none;background:transparent;color:var(--app-text);font:13px monospace}
+#bgColor{width:28px;height:28px;flex-shrink:0;border-radius:50%;overflow:hidden}
+#bgColor::-webkit-color-swatch-wrapper{padding:0}
+#bgColor::-webkit-color-swatch{border:0;border-radius:50%}
+#bgColor::-moz-color-swatch{border:0;border-radius:50%}
+.colour-presets{display:flex;justify-content:space-between;gap:8px;margin:18px 0}
+.colour-presets button{width:28px;height:28px;border-radius:50%;border:1px solid #8885;padding:0}
+#panelMatch{width:100%;background:var(--button);color:var(--app-text);font-size:12px}
+main{padding-top:90px;padding-left:70px;padding-right:24px}
+@media(max-width:720px){.panel-logo{width:110px;height:30px}.position-y{left:5px;width:42px;padding:12px 5px}.position-y label{font-size:10px}main{padding-left:55px;padding-right:12px}.colour-panel{right:16px}}
+@media(max-width:420px){.panel-logo{width:100px;height:28px}.position-x{padding:8px 12px}.colour-presets{gap:5px}}
