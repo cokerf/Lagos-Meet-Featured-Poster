@@ -1,5 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
+let articleView='grid', articlePage=0;
 let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imagePosition={x:50,y:50};
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
@@ -14,19 +15,42 @@ function coverCrop(sourceWidth, sourceHeight, targetWidth, targetHeight, x=50, y
  return [(sourceWidth-width)*x/100,(sourceHeight-height)*y/100,width,height];
 }
 function dateLabel(date) {return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date(date.length===10?date+'T12:00:00+01:00':date));}
+function storyPage(items,page,size=12){
+ const count=Math.max(1,Math.ceil(items.length/size)),index=Math.max(0,Math.min(page,count-1));
+ return {items:items.slice(index*size,(index+1)*size),index,count};
+}
 function renderArticles() {
- const query=$('search').value.trim().toLocaleLowerCase(); const matches=articles.filter(a=>a.title.toLocaleLowerCase().includes(query));
+ const query=$('search').value.trim().toLocaleLowerCase();
+ const matches=articles.filter(a=>a.title.toLocaleLowerCase().includes(query));
+ const paged=storyPage(matches,articlePage);articlePage=paged.index;
+ const grid=articleView==='grid';
+ $('articleDialog').classList.toggle('grid-dialog',grid);
+ $('articleList').classList.toggle('story-grid',grid);
  $('articleList').replaceChildren();
- for(const article of matches) {
-  const button=document.createElement('button');button.className='article-row';
-  const title=document.createElement('span');title.textContent=article.title;
+ for(const article of (grid?paged.items:matches)) {
+  const button=document.createElement('button');button.className=grid?'story-card':'article-row';
+  if(grid){
+   const cover=document.createElement('div');cover.className='story-cover';
+   const fallback=document.createElement('span');fallback.textContent='Lagos Meet';fallback.className='cover-fallback';
+   const image=document.createElement('img');image.src=article.image;image.alt='';image.loading='lazy';image.decoding='async';
+   image.onerror=()=>{image.hidden=true;};cover.append(fallback,image);button.append(cover);
+  }
+  const title=document.createElement('span');title.className='story-title';title.textContent=article.title;
   const date=document.createElement('small');date.textContent=dateLabel(article.date);
   button.append(title,date);button.onclick=()=>selectArticle(article);$('articleList').append(button);
  }
- if(!loading) $('loadStatus').textContent=matches.length ? `${matches.length} eligible article${matches.length===1?'':'s'}` : 'No eligible articles match. Check the required fields in Notion.';
+ $('articlePages').hidden=!grid||matches.length===0;
+ $('previousPage').disabled=articlePage===0;$('nextPage').disabled=articlePage>=paged.count-1;
+ $('pageLabel').textContent='Page '+(articlePage+1)+' of '+paged.count;
+ $('viewToggle').textContent=grid?'List view':'Grid view';
+ $('viewToggle').setAttribute('aria-pressed',String(grid));
+ if(!loading) $('loadStatus').textContent=matches.length ? matches.length+' eligible article'+(matches.length===1?'':'s') : 'No eligible articles match. Check the required fields in Notion.';
 }
+$('viewToggle').onclick=()=>{articleView=articleView==='grid'?'list':'grid';articlePage=0;renderArticles();};
+function turnStoryPage(delta){articlePage+=delta;renderArticles();$('articleList').scrollIntoView({block:'start'});}
+$('previousPage').onclick=()=>turnStoryPage(-1);$('nextPage').onclick=()=>turnStoryPage(1);
 async function loadArticles() {
- if(loading)return;loading=true;articles=[];renderArticles();$('refresh').disabled=true;
+ if(loading)return;loading=true;articles=[];articlePage=0;renderArticles();$('refresh').disabled=true;
  try {
   let cursor=null;
   do {
@@ -121,7 +145,7 @@ $('modeToggle').onclick=()=>{
  applyMode(savedMode);try{localStorage.setItem('lagos-meet-mode',savedMode);}catch{}
 };
 preferredMode.addEventListener('change',event=>{if(!savedMode)applyMode(event.matches?'dark':'light');});
-$('closeArticles').onclick=()=>$('articleDialog').close();$('refresh').onclick=loadArticles;$('search').oninput=renderArticles;
+$('closeArticles').onclick=()=>$('articleDialog').close();$('refresh').onclick=loadArticles;$('search').oninput=()=>{articlePage=0;renderArticles();};
 for(const button of document.querySelectorAll('[data-format]'))button.onclick=()=>{format=button.dataset.format;$('postCard').className=format;for(const b of document.querySelectorAll('[data-format]'))b.setAttribute('aria-pressed',String(b===button));scale();};
 $('bgColor').oninput=event=>theme(event.target.value);$('autoColor').onclick=matchColour;
 $('uploadBtn').onclick=()=>$('imageUpload').click();$('artworkContainer').ondblclick=()=>$('imageUpload').click();
