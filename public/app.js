@@ -8,6 +8,11 @@ function scale() {
  $('previewWrapper').style.width=width+'px';$('previewWrapper').style.height=width*h/w+'px';
  $('postCard').style.width=w+'px';$('postCard').style.height=h+'px';$('postCard').style.transform=`scale(${width/w})`;
 }
+function coverCrop(sourceWidth, sourceHeight, targetWidth, targetHeight) {
+ const ratio=Math.max(targetWidth/sourceWidth,targetHeight/sourceHeight);
+ const width=Math.min(sourceWidth,targetWidth/ratio),height=Math.min(sourceHeight,targetHeight/ratio);
+ return [(sourceWidth-width)/2,(sourceHeight-height)/2,width,height];
+}
 function dateLabel(date) {return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date(date.length===10?date+'T12:00:00+01:00':date));}
 function renderArticles() {
  const query=$('search').value.trim().toLocaleLowerCase(); const matches=articles.filter(a=>a.title.toLocaleLowerCase().includes(query));
@@ -75,7 +80,20 @@ $('download').onclick=async()=>{
   if(!window.html2canvas)throw new Error('Export library did not load. Check your connection and reload.');
   await document.fonts.ready;await $('previewImage').decode();const [width,height]=dimensions[format];
   const canvas=await html2canvas($('postCard'),{scale:1,width,height,useCORS:true,allowTaint:false,logging:false,
-   onclone:doc=>{const card=doc.getElementById('postCard');card.style.transform='none';card.classList.add('is-exporting');}});
+   onclone:doc=>{
+    const card=doc.getElementById('postCard');card.style.transform='none';card.classList.add('is-exporting');
+    for(const id of ['previewTitle','previewDate']){
+     const element=doc.getElementById(id);element.style.color='#000000';element.style.webkitTextFillColor='#000000';
+    }
+    // html2canvas ignores object-fit. Draw a centered cover crop using source pixels.
+    const frame=doc.getElementById('artworkContainer');
+    const source=$('previewImage'),image=doc.getElementById('previewImage');
+    const crop=doc.createElement('canvas');
+    crop.width=Math.max(1,Math.round(frame.clientWidth));crop.height=Math.max(1,Math.round(frame.clientHeight));
+    crop.style.cssText='position:absolute;inset:0;width:100%;height:100%;display:block;';
+    crop.getContext('2d').drawImage(source,...coverCrop(source.naturalWidth,source.naturalHeight,crop.width,crop.height),0,0,crop.width,crop.height);
+    image.replaceWith(crop);
+   }});
   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('PNG export failed');
   const link=document.createElement('a');const url=URL.createObjectURL(blob);link.href=url;link.download=`LagosMeet-${format}-${selected?.id||Date.now()}.png`;link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);toast('Poster exported');
  }catch(error){toast(error.message);}finally{button.disabled=!imageReady;button.textContent='Export PNG';}
