@@ -59,10 +59,10 @@ function hslToHex(h,s,l){
 function positionImage(){
  imagePosition={x:Number($('imageX').value),y:Number($('imageY').value)};
  $('previewImage').style.objectPosition=imagePosition.x+'% '+imagePosition.y+'%';
- $('xValue').textContent=imagePosition.x+'%';$('yValue').textContent=imagePosition.y+'%';
+
 }
 $('imageX').oninput=positionImage;$('imageY').oninput=positionImage;
-$('resetPosition').onclick=()=>{$('imageX').value=50;$('imageY').value=50;positionImage();};
+
 function colourPanel(open){$('colourPanel').hidden=!open;$('colourTrigger').setAttribute('aria-expanded',String(open));}
 $('colourTrigger').onclick=()=>colourPanel($('colourPanel').hidden);
 $('closeColour').onclick=()=>colourPanel(false);
@@ -168,16 +168,44 @@ $('download').onclick=async()=>{
   downloadBlob(blob,'png');toast('Poster exported');
  }catch(error){toast(error.message);}finally{exportLock(false);$('download').textContent='Export PNG';}
 };
-function badgeAlpha(time) {
- if(time<1.8)return 0;
- if(time<2.2)return (time-1.8)/.4;
- if(time<4)return 1;
- if(time<4.4)return 1-(time-4)/.4;
- return 0;
+function createBadgeMotion() {
+ const state={dateY:0,badgeY:1,reveal:0,text:0};
+ const timeline=anime.timeline({autoplay:false,easing:'easeInOutQuint'});
+ timeline.add({targets:state,dateY:[0,-1],duration:720},1400)
+ .add({targets:state,badgeY:[1,0],reveal:[0,1],duration:900,easing:'easeOutQuint'},1610)
+ .add({targets:state,text:[0,1],duration:860,easing:'easeOutCubic'},1740)
+ .add({targets:state,badgeY:[0,-1],reveal:[1,0],duration:800,easing:'easeInOutQuint'},4020)
+ .add({targets:state,dateY:[1,0],duration:900,easing:'easeOutQuint'},4290);
+ return {state,timeline};
+}
+function drawBadgeMotion(ctx,motion,cx,cy,fontSize,family,dateText,colour,textColour) {
+ ctx.font=fontSize+'px '+family;ctx.textBaseline='middle';ctx.textAlign='center';
+ const text='Project of the Day',height=fontSize*1.8,width=ctx.measureText(text).width+fontSize*1.4;
+ // A stationary viewport clips both lines as they travel through it.
+ ctx.save();ctx.beginPath();ctx.rect(cx-width,cy-height/2,width*2,height);ctx.clip();
+ ctx.fillStyle='#000';ctx.fillText(dateText,cx,cy+motion.dateY*height);
+ if(motion.reveal>.0001){
+  const y=cy+motion.badgeY*height,w=width*motion.reveal;
+  ctx.save();ctx.beginPath();ctx.roundRect(cx-w/2,y-height/2,w,height,Math.min(fontSize*.4,w/2));ctx.clip();
+  ctx.fillStyle=colour;ctx.fillRect(cx-width/2,y-height/2,width,height);
+  // A second mask holds the letters inside the coloured pill.
+  ctx.fillStyle=textColour;ctx.textAlign='left';
+  const characters=Array.from(text),measurements=characters.map(char=>ctx.measureText(char).width);
+  let x=cx-measurements.reduce((a,b)=>a+b,0)/2;
+  characters.forEach((char,index)=>{
+   const progress=Math.max(0,Math.min(1,(motion.text-index*.018)/.68));
+   const eased=1-(1-progress)**3;
+   ctx.fillText(char,x,y+(1-eased)*height);
+   x+=measurements[index];
+  });
+  ctx.restore();
+ }
+ ctx.restore();
 }
 $('downloadVideo').onclick=async()=>{
  if(!imageReady||exporting)return;
  if(!window.VideoEncoder||!window.VideoFrame){toast('MP4 export needs a browser with video encoding support. Try current Chrome or Edge on desktop.');return;}
+ if(!window.anime){toast('Animation library did not load. Check your connection and reload.');return;}
  if(!window.Mp4Muxer){toast('Video library did not load. Check your connection and reload.');return;}
  exportLock(true);$('downloadVideo').textContent='Preparing…';document.activeElement?.blur();
  let encoder;
@@ -196,15 +224,12 @@ $('downloadVideo').onclick=async()=>{
   let encodingError=null;
   encoder=new VideoEncoder({output:(chunk,meta)=>{try{muxer.addVideoChunk(chunk,meta);}catch(e){encodingError=e;}},error:error=>{encodingError=error;}});
   encoder.configure(config);
+  const motion=createBadgeMotion();
   for(let i=0;i<180;i++){
    if(encodingError)throw encodingError;
    ctx.globalAlpha=1;ctx.fillStyle=colour;ctx.fillRect(0,0,width,height);ctx.drawImage(base,0,0);
-   const alpha=badgeAlpha(i/fps);
-   ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=fontSize+'px '+family;ctx.fillStyle='#000';ctx.globalAlpha=1-alpha;ctx.fillText(dateText,cx,cy);
-   ctx.globalAlpha=alpha;
-   const text='Project of the Day',pad=fontSize*.65,badgeWidth=ctx.measureText(text).width+pad*2,badgeHeight=fontSize*1.65;
-   ctx.fillStyle=colour;ctx.beginPath();ctx.roundRect(cx-badgeWidth/2,cy-badgeHeight/2,badgeWidth,badgeHeight,fontSize*.35);ctx.fill();
-   ctx.fillStyle=badgeTextColour;ctx.fillText(text,cx,cy);
+   motion.timeline.seek(i*1000/fps);
+   drawBadgeMotion(ctx,motion.state,cx,cy,fontSize,family,dateText,colour,badgeTextColour);
    const frame=new VideoFrame(canvas,{timestamp:Math.round(i*1000000/fps),duration:Math.round(1000000/fps)});
    try{encoder.encode(frame,{keyFrame:i%60===0});}finally{frame.close();}
    if(i%12===11){await encoder.flush();$('downloadVideo').textContent='MP4 '+Math.round((i+1)/180*100)+'%';await new Promise(resolve=>setTimeout(resolve,0));}
