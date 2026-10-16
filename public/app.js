@@ -1,14 +1,60 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let articleView='grid', articlePage=0;
-let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imagePosition={x:50,y:50};
+let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imageBackgroundEnabled=false, imagePosition={x:50,y:50};
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
 function scale() {
  const [w,h]=dimensions[format];const panelHeight=document.querySelector('.controls').getBoundingClientRect().height;document.documentElement.style.setProperty('--panel-space',(panelHeight+48)+'px');const width=Math.max(1,Math.min(innerWidth-100,520,Math.max(120,(window.visualViewport?.height||innerHeight)-panelHeight-140)*w/h));
  $('previewWrapper').style.width=width+'px';$('previewWrapper').style.height=width*h/w+'px';
  $('postCard').style.width=w+'px';$('postCard').style.height=h+'px';$('postCard').style.transform=`scale(${width/w})`;
+ clampHeadline();renderImageBackground();
 }
+function fitHeadlineText(text,fits){
+ if(fits(text))return text;
+ const words=text.trim().split(/\s+/);
+ let low=0,high=words.length;
+ while(low<high){const mid=Math.ceil((low+high)/2);if(fits(words.slice(0,mid).join(' ')+'…'))low=mid;else high=mid-1;}
+ if(low)return words.slice(0,low).join(' ')+'…';
+ const chars=Array.from(text);low=0;high=chars.length;
+ while(low<high){const mid=Math.ceil((low+high)/2);if(fits(chars.slice(0,mid).join('')+'…'))low=mid;else high=mid-1;}
+ return chars.slice(0,low).join('')+'…';
+}
+function clampHeadline(){
+ const title=$('previewTitle');if(document.activeElement===title)return;
+ const full=title.dataset.fullTitle??title.textContent.trim();title.dataset.fullTitle=full;
+ const style=getComputedStyle(title),lines=format==='landscape'?2:format==='story'?4:3;
+ const probe=document.createElement('div');
+ Object.assign(probe.style,{position:'fixed',left:'-20000px',top:'0',visibility:'hidden',width:title.clientWidth+'px',fontFamily:style.fontFamily,fontSize:style.fontSize,fontWeight:style.fontWeight,lineHeight:style.lineHeight,letterSpacing:style.letterSpacing,overflowWrap:'anywhere',whiteSpace:'normal',padding:'0',margin:'0'});
+ document.body.append(probe);
+ try{
+  const lineHeight=parseFloat(style.lineHeight);
+  title.textContent=fitHeadlineText(full,candidate=>{probe.textContent=candidate;return probe.getBoundingClientRect().height<=lineHeight*lines+.5;});
+ }finally{probe.remove();}
+}
+$('previewTitle').addEventListener('focus',()=>{
+ const title=$('previewTitle');title.textContent=title.dataset.fullTitle??title.textContent;
+});
+$('previewTitle').addEventListener('blur',()=>{const title=$('previewTitle');title.dataset.fullTitle=title.textContent.trim();clampHeadline();});
+function renderImageBackground(){
+ const canvas=$('imageBackground');
+ canvas.hidden=!imageBackgroundEnabled||!imageReady;
+ if(canvas.hidden)return;
+ const [width,height]=dimensions[format],w=Math.round(width/4),h=Math.round(height/4);
+ if(canvas.width===w&&canvas.height===h&&canvas.dataset.source===activeObjectURL)return;
+ canvas.width=w;canvas.height=h;canvas.dataset.source=activeObjectURL;
+ const context=canvas.getContext('2d'),source=$('previewImage');
+ // Bake the blur into pixels so html2canvas exports it without CSS-filter support.
+ context.filter='blur(12px)';
+ const ratio=Math.max(w/source.naturalWidth,h/source.naturalHeight)*1.24;
+ const dw=source.naturalWidth*ratio,dh=source.naturalHeight*ratio;
+ context.drawImage(source,(w-dw)/2,(h-dh)/2,dw,dh);
+ context.filter='none';context.fillStyle='rgba(0,0,0,.22)';context.fillRect(0,0,w,h);
+}
+$('backgroundToggle').onclick=()=>{
+ imageBackgroundEnabled=!imageBackgroundEnabled;
+ $('backgroundToggle').setAttribute('aria-pressed',String(imageBackgroundEnabled));renderImageBackground();
+};
 function coverCrop(sourceWidth, sourceHeight, targetWidth, targetHeight, x=50, y=50) {
  const ratio=Math.max(targetWidth/sourceWidth,targetHeight/sourceHeight);
  const width=Math.min(sourceWidth,targetWidth/ratio),height=Math.min(sourceHeight,targetHeight/ratio);
@@ -107,19 +153,19 @@ function matchColour() {
  }catch{toast('Could not sample this image. Choose a colour manually.');}
 }
 async function setImage(src) {
- $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;$('download').disabled=true;$('downloadVideo').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
+ $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;renderImageBackground();$('download').disabled=true;$('downloadVideo').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
  try {
   let blob;
   if(src instanceof Blob)blob=src;
   else {const response=await fetch(src,{cache:'no-store'});if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(data?.error||'Cover image failed to load');}blob=await response.blob();}
   const objectURL=URL.createObjectURL(blob);const image=new Image();
   try {image.src=objectURL;await image.decode();if(ticket!==generation)return;
-   if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);activeObjectURL=objectURL;$('previewImage').src=objectURL;await $('previewImage').decode();$('previewImage').style.display='block';$('imageHint').style.display='none';imageReady=true;$('download').disabled=false;$('downloadVideo').disabled=false;matchColour();
+   if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);activeObjectURL=objectURL;$('previewImage').src=objectURL;await $('previewImage').decode();$('previewImage').style.display='block';$('imageHint').style.display='none';imageReady=true;renderImageBackground();$('download').disabled=false;$('downloadVideo').disabled=false;matchColour();
   }finally{if(activeObjectURL!==objectURL)URL.revokeObjectURL(objectURL);}
  }catch(error){if(ticket!==generation)return;$('imageHint').textContent=error.message;toast(error.message);}
 }
 async function selectArticle(article) {
- selected=article;$('previewTitle').textContent=article.title;$('previewDate').textContent=dateLabel(article.date);$('articleDialog').close();
+ selected=article;$('previewTitle').dataset.fullTitle=article.title;$('previewTitle').textContent=article.title;clampHeadline();$('previewDate').textContent=dateLabel(article.date);$('articleDialog').close();
  await setImage(article.image); // Image endpoint re-fetches the page and fresh Notion file URL.
 }
 function openArticlePicker() {
@@ -154,7 +200,7 @@ $('imageUpload').onchange=event=>{const file=event.target.files[0];if(file&&!exp
 window.addEventListener('dragover',event=>event.preventDefault());window.addEventListener('drop',event=>{event.preventDefault();const file=event.dataTransfer.files[0];if(!exporting&&file?.type.startsWith('image/'))setImage(file);});
 async function capturePoster(hideDate=false) {
   if(!window.html2canvas)throw new Error('Export library did not load. Check your connection and reload.');
-  await document.fonts.ready;await $('previewImage').decode();const [width,height]=dimensions[format];
+  await document.fonts.ready;clampHeadline();renderImageBackground();await $('previewImage').decode();const [width,height]=dimensions[format];
   return await html2canvas($('postCard'),{scale:1,width,height,useCORS:true,allowTaint:false,logging:false,
    onclone:doc=>{
     if(hideDate)doc.getElementById('previewDate').style.visibility='hidden';
