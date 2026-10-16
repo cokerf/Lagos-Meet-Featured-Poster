@@ -207,7 +207,7 @@ $('modeToggle').onclick=()=>{
 preferredMode.addEventListener('change',event=>{if(!savedMode)applyMode(event.matches?'dark':'light');});
 $('closeArticles').onclick=()=>$('articleDialog').close();$('refresh').onclick=loadArticles;$('search').oninput=()=>{articlePage=0;renderArticles();};
 for(const button of document.querySelectorAll('[data-format]'))button.onclick=()=>{format=button.dataset.format;$('postCard').className=format;for(const b of document.querySelectorAll('[data-format]'))b.setAttribute('aria-pressed',String(b===button));scale();};
-$('bgColor').oninput=event=>theme(event.target.value);$('autoColor').onclick=matchColour;
+$('bgColor').oninput=event=>theme(event.target.value);
 $('uploadBtn').onclick=()=>$('imageUpload').click();$('artworkContainer').ondblclick=()=>$('imageUpload').click();
 $('postCard').ondblclick=event=>{if(event.target===$('postCard'))$('bgColor').click();};
 $('imageUpload').onchange=event=>{const file=event.target.files[0];if(file&&!exporting)setImage(file);event.target.value='';};
