@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {eligible, text, dayInLagos} from '../lib/notion.mjs';
 import articlesHandler from '../netlify/functions/articles.mjs';
 const page = () => ({id:'12345678-1234-1234-1234-123456789012',properties:{
+ "Creator's Name":{title:[{plain_text:'Success Aroyameh'}]},
  'Title of Story':{rich_text:[{plain_text:'A story'}]},
  'Date of Publication':{date:{start:'2026-10-15'}},
  'Cover Image':{files:[{file:{url:'https://prod-files-secure.s3.us-west-2.amazonaws.com/cover.jpg'}}]},
@@ -24,6 +25,6 @@ test('API screens rows, passes cursor and never returns private properties or si
  const original=globalThis.fetch;process.env.NOTION_TOKEN='test';process.env.NOTION_DATA_SOURCE_ID='source';
  const valid=page();valid.properties.Email={email:'private@example.com'};const draft=page();draft.properties.Status.status.name='Draft';
  globalThis.fetch=async(url,options)=>{assert.ok(url.endsWith('/data_sources/source/query'));assert.equal(JSON.parse(options.body).start_cursor,'next');return Response.json({results:[valid,draft],has_more:true,next_cursor:'more'});};
- try{const response=await articlesHandler(new Request('https://example.com/.netlify/functions/articles?cursor=next'));const data=await response.json();assert.equal(data.articles.length,1);assert.equal(data.nextCursor,'more');assert.deepEqual(Object.keys(data.articles[0]),['id','title','date','image']);assert.ok(!JSON.stringify(data).includes('private@example.com'));assert.ok(!JSON.stringify(data).includes('amazonaws'));}
+ try{const response=await articlesHandler(new Request('https://example.com/.netlify/functions/articles?cursor=next'));const data=await response.json();assert.equal(data.articles.length,1);assert.equal(data.nextCursor,'more');assert.equal(data.articles[0].creator,'Success Aroyameh');assert.deepEqual(Object.keys(data.articles[0]),['id','title','creator','date','image']);assert.ok(!JSON.stringify(data).includes('private@example.com'));assert.ok(!JSON.stringify(data).includes('amazonaws'));}
  finally{globalThis.fetch=original;delete process.env.NOTION_TOKEN;delete process.env.NOTION_DATA_SOURCE_ID;}
 });
