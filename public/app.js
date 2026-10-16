@@ -259,7 +259,7 @@ $('exportTrigger').onclick=()=>{const open=$('exportMenu').hidden;setExportMenu(
 document.addEventListener('click',event=>{if(!event.target.closest('.export-control'))setExportMenu(false);});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('exportMenu').hidden){setExportMenu(false);$('exportTrigger').focus();}});
 function exportLock(locked) {
- exporting=locked;setExportMenu(false);$('exportTrigger').textContent=locked?'Exporting…':'Export ⌄';
+ exporting=locked;setExportMenu(false);$('exportChevron').style.display=locked?'none':'block';$('exportLabel').textContent=locked?'Exporting…':'Export';
  for(const element of document.querySelectorAll('.controls button,.controls input,.position-control input,.position-control button,#colourPanel button,#colourPanel input,#posterSearch'))element.disabled=locked;
  for(const element of [$('previewDate'),$('previewTitle')])element.contentEditable=locked?'false':'plaintext-only';
  if(!locked){$('exportTrigger').disabled=!imageReady;$('download').disabled=!imageReady;$('downloadVideo').disabled=!imageReady;}
@@ -354,7 +354,7 @@ $('downloadVideo').onclick=async()=>{
    drawBadgeMotion(ctx,motion.state,cx,cy,fontSize,family,dateText,colour,badgeTextColour);
    const frame=new VideoFrame(canvas,{timestamp:Math.round(i*1000000/fps),duration:Math.round(1000000/fps)});
    try{encoder.encode(frame,{keyFrame:i%60===0});}finally{frame.close();}
-   if(i%12===11){await encoder.flush();$('exportTrigger').textContent='MP4 '+Math.round((i+1)/180*100)+'%';await new Promise(resolve=>setTimeout(resolve,0));}
+   if(i%12===11){await encoder.flush();$('exportLabel').textContent='MP4 '+Math.round((i+1)/180*100)+'%';await new Promise(resolve=>setTimeout(resolve,0));}
   }
   await encoder.flush();if(encodingError)throw encodingError;muxer.finalize();
   downloadBlob(new Blob([target.buffer],{type:'video/mp4'}),'mp4');toast('6-second MP4 exported');
