@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let articleView='grid', articlePage=0;
-let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imageBackgroundEnabled=false, imagePosition={x:50,y:50};
+let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imageBackgroundEnabled=true, imagePosition={x:50,y:50};
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
 function scale() {
@@ -36,7 +36,12 @@ $('previewTitle').addEventListener('focus',()=>{
  const title=$('previewTitle');title.textContent=title.dataset.fullTitle??title.textContent;
 });
 $('previewTitle').addEventListener('blur',()=>{const title=$('previewTitle');title.dataset.fullTitle=title.textContent.trim();clampHeadline();});
+function syncColourSwatch(){
+ const swatch=$('colourSwatch');swatch.style.backgroundImage=imageBackgroundEnabled&&imageReady&&activeObjectURL?'url("'+activeObjectURL+'")':'none';
+ swatch.style.backgroundSize='cover';swatch.style.backgroundPosition='center';
+}
 function renderImageBackground(){
+ syncColourSwatch();
  const canvas=$('imageBackground');
  canvas.hidden=!imageBackgroundEnabled||!imageReady;
  if(canvas.hidden)return;
@@ -119,7 +124,7 @@ async function loadArticles(autoSelect=false) {
 function theme(hex){
  $('postCard').style.backgroundColor=hex;$('bgColor').value=hex;
  $('hexColour').value=hex;$('hexColour').setCustomValidity('');
- $('colourSwatch').style.background=hex;$('colourPreview').style.background=hex;
+ $('colourSwatch').style.background=hex;syncColourSwatch();$('colourPreview').style.background=hex;
  const [h,s,l]=hexToHsl(hex);$('hue').value=h;$('saturation').value=s;$('lightness').value=l;
  $('hueValue').textContent=Math.round(h)+'°';$('satValue').textContent=Math.round(s)+'%';$('lightValue').textContent=Math.round(l)+'%';
  $('saturation').style.background='linear-gradient(to right,hsl('+h+' 0% 50%),hsl('+h+' 100% 50%))';
@@ -171,14 +176,14 @@ document.addEventListener('click',event=>{if(!event.target.closest('#artworkCont
 document.addEventListener('keydown',event=>{if(event.key==='Escape')showImageSliders(false);});
 async function setImage(src) {
  showImageSliders(false);
- $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;renderImageBackground();$('download').disabled=true;$('downloadVideo').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
+ $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;renderImageBackground();$('exportTrigger').disabled=true;$('download').disabled=true;$('downloadVideo').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
  try {
   let blob;
   if(src instanceof Blob)blob=src;
   else {const response=await fetch(src,{cache:'no-store'});if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(data?.error||'Cover image failed to load');}blob=await response.blob();}
   const objectURL=URL.createObjectURL(blob);const image=new Image();
   try {image.src=objectURL;await image.decode();if(ticket!==generation)return;
-   if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);activeObjectURL=objectURL;$('previewImage').src=objectURL;await $('previewImage').decode();$('previewImage').style.display='block';$('imageHint').style.display='none';imageReady=true;renderImageBackground();$('download').disabled=false;$('downloadVideo').disabled=false;matchColour();
+   if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);activeObjectURL=objectURL;$('previewImage').src=objectURL;await $('previewImage').decode();$('previewImage').style.display='block';$('imageHint').style.display='none';imageReady=true;renderImageBackground();$('exportTrigger').disabled=false;$('download').disabled=false;$('downloadVideo').disabled=false;matchColour();
   }finally{if(activeObjectURL!==objectURL)URL.revokeObjectURL(objectURL);}
  }catch(error){if(ticket!==generation)return;$('imageHint').textContent=error.message;toast(error.message);}
 }
@@ -212,7 +217,7 @@ preferredMode.addEventListener('change',event=>{if(!savedMode)applyMode(event.ma
 $('closeArticles').onclick=()=>$('articleDialog').close();$('refresh').onclick=loadArticles;$('search').oninput=()=>{articlePage=0;renderArticles();};
 for(const button of document.querySelectorAll('[data-format]'))button.onclick=()=>{format=button.dataset.format;$('postCard').className=format;for(const b of document.querySelectorAll('[data-format]'))b.setAttribute('aria-pressed',String(b===button));scale();};
 $('bgColor').oninput=event=>theme(event.target.value);
-$('uploadBtn').onclick=()=>$('imageUpload').click();$('artworkContainer').ondblclick=()=>$('imageUpload').click();
+$('artworkContainer').ondblclick=()=>$('imageUpload').click();
 $('postCard').ondblclick=event=>{if(event.target===$('postCard'))$('bgColor').click();};
 $('imageUpload').onchange=event=>{const file=event.target.files[0];if(file&&!exporting)setImage(file);event.target.value='';};
 window.addEventListener('dragover',event=>event.preventDefault());window.addEventListener('drop',event=>{event.preventDefault();const file=event.dataTransfer.files[0];if(!exporting&&file?.type.startsWith('image/'))setImage(file);});
@@ -247,11 +252,17 @@ function downloadBlob(blob,extension) {
  link.href=url;link.download='LagosMeet-'+format+'-'+(selected?.id||Date.now())+'.'+extension;
  link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
+function setExportMenu(open){
+ $('exportMenu').hidden=!open;$('exportTrigger').setAttribute('aria-expanded',String(open));
+}
+$('exportTrigger').onclick=()=>{const open=$('exportMenu').hidden;setExportMenu(open);if(open)$('download').focus();};
+document.addEventListener('click',event=>{if(!event.target.closest('.export-control'))setExportMenu(false);});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('exportMenu').hidden){setExportMenu(false);$('exportTrigger').focus();}});
 function exportLock(locked) {
- exporting=locked;
+ exporting=locked;setExportMenu(false);$('exportTrigger').textContent=locked?'Exporting…':'Export ⌄';
  for(const element of document.querySelectorAll('.controls button,.controls input,.position-control input,.position-control button,#colourPanel button,#colourPanel input,#posterSearch'))element.disabled=locked;
  for(const element of [$('previewDate'),$('previewTitle')])element.contentEditable=locked?'false':'plaintext-only';
- if(!locked){$('download').disabled=!imageReady;$('downloadVideo').disabled=!imageReady;}
+ if(!locked){$('exportTrigger').disabled=!imageReady;$('download').disabled=!imageReady;$('downloadVideo').disabled=!imageReady;}
 }
 $('download').onclick=async()=>{
  if(!imageReady||exporting)return;exportLock(true);$('download').textContent='Exporting…';document.activeElement?.blur();
@@ -259,7 +270,7 @@ $('download').onclick=async()=>{
   const canvas=await capturePoster();
   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));if(!blob)throw new Error('PNG export failed');
   downloadBlob(blob,'png');toast('Poster exported');
- }catch(error){toast(error.message);}finally{exportLock(false);$('download').textContent='Export PNG';}
+ }catch(error){toast(error.message);}finally{exportLock(false);$('download').innerHTML='<strong>PNG image</strong><small>High-resolution still</small>';}
 };
 function createBadgeMotion() {
  const state={dateY:0,badgeY:1,reveal:0,text:0,imageProgress:0};
@@ -343,11 +354,11 @@ $('downloadVideo').onclick=async()=>{
    drawBadgeMotion(ctx,motion.state,cx,cy,fontSize,family,dateText,colour,badgeTextColour);
    const frame=new VideoFrame(canvas,{timestamp:Math.round(i*1000000/fps),duration:Math.round(1000000/fps)});
    try{encoder.encode(frame,{keyFrame:i%60===0});}finally{frame.close();}
-   if(i%12===11){await encoder.flush();$('downloadVideo').textContent='MP4 '+Math.round((i+1)/180*100)+'%';await new Promise(resolve=>setTimeout(resolve,0));}
+   if(i%12===11){await encoder.flush();$('exportTrigger').textContent='MP4 '+Math.round((i+1)/180*100)+'%';await new Promise(resolve=>setTimeout(resolve,0));}
   }
   await encoder.flush();if(encodingError)throw encodingError;muxer.finalize();
   downloadBlob(new Blob([target.buffer],{type:'video/mp4'}),'mp4');toast('6-second MP4 exported');
- }catch(error){toast(error.message);}finally{if(encoder&&encoder.state!=='closed')encoder.close();exportLock(false);$('downloadVideo').textContent='Export MP4';}
+ }catch(error){toast(error.message);}finally{if(encoder&&encoder.state!=='closed')encoder.close();exportLock(false);$('downloadVideo').innerHTML='<strong>MP4 video</strong><small>6-second animated poster</small>';}
 };
 new ResizeObserver(scale).observe(document.querySelector('.controls'));
 window.visualViewport?.addEventListener('resize',scale);
