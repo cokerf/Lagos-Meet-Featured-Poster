@@ -148,3 +148,14 @@ dialog .story-card:hover{transform:translateY(-2px);border-color:var(--muted)}
 .toggle-track::after{content:'';display:block;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 4px #0003;transition:transform .2s}
 .background-option[aria-pressed=true] .toggle-track{background:#7a7a7a}
 .background-option[aria-pressed=true] .toggle-track::after{transform:translateX(14px)}
+
+/* Optical centering for the export label and vector chevron. */
+.controls #exportTrigger{display:inline-flex;align-items:center;justify-content:center;gap:8px;line-height:1;min-height:44px}
+#exportLabel{display:block;line-height:1}
+#exportChevron{display:block;flex-shrink:0;transition:transform .18s ease}
+#exportTrigger[aria-expanded=true] #exportChevron{transform:rotate(180deg)}
+.formats button{position:relative;display:grid;place-items:center;width:44px;height:44px;padding:8px!important}
+.ratio-icon{display:block;flex-shrink:0}
+.formats button::after{content:attr(data-tooltip);position:absolute;left:50%;bottom:calc(100% + 10px);transform:translateX(-50%) translateY(4px);background:var(--accent);color:var(--accent-text);font-size:11px;font-weight:500;line-height:1;padding:8px 10px;border-radius:8px;box-shadow:0 4px 14px #0002;white-space:nowrap;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .15s,transform .15s,visibility .15s;z-index:25}
+.formats button:hover::after,.formats button:focus-visible::after{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+@media(prefers-reduced-motion:reduce){.formats button::after,#exportChevron{transition:none}}
