@@ -95,7 +95,7 @@ function renderArticles() {
 $('viewToggle').onclick=()=>{articleView=articleView==='grid'?'list':'grid';articlePage=0;renderArticles();};
 function turnStoryPage(delta){articlePage+=delta;renderArticles();$('articleList').scrollIntoView({block:'start'});}
 $('previousPage').onclick=()=>turnStoryPage(-1);$('nextPage').onclick=()=>turnStoryPage(1);
-async function loadArticles() {
+async function loadArticles(autoSelect=false) {
  if(loading)return;loading=true;articles=[];articlePage=0;renderArticles();$('refresh').disabled=true;
  try {
   let cursor=null;
@@ -104,9 +104,12 @@ async function loadArticles() {
    const response=await fetch('/.netlify/functions/articles'+(cursor?'?cursor='+encodeURIComponent(cursor):''),{cache:'no-store'});
    const data=await response.json();if(!response.ok)throw new Error(data.error||'Unable to load articles');
    articles.push(...data.articles);cursor=data.nextCursor;renderArticles();
+   // Results arrive newest publication date first, including across pages.
+   if(autoSelect===true&&!selected&&data.articles.length)await selectArticle(data.articles[0]);
   }while(cursor);
   loading=false;renderArticles();
- }catch(error){$('loadStatus').textContent=error.message;loading=false;}
+  if(autoSelect===true&&!selected){$('previewDate').textContent='No published story available';$('imageHint').textContent='Choose article to review available stories.';}
+ }catch(error){$('loadStatus').textContent=error.message;loading=false;if(autoSelect===true&&!selected){$('previewDate').textContent='Could not load latest story';$('imageHint').textContent=error.message;toast(error.message);}}
  finally{$('refresh').disabled=false;}
 }
 function theme(hex){
@@ -152,7 +155,18 @@ function matchColour() {
   theme('#'+best.map(x=>x.toString(16).padStart(2,'0')).join(''));
  }catch{toast('Could not sample this image. Choose a colour manually.');}
 }
+function showImageSliders(show) {
+ for(const slider of document.querySelectorAll('.position-control'))slider.hidden=!show;
+ $('artworkContainer').setAttribute('aria-expanded',String(show));
+}
+$('artworkContainer').addEventListener('click',()=>{if(imageReady&&!exporting)showImageSliders(true);});
+$('artworkContainer').addEventListener('keydown',event=>{
+ if((event.key==='Enter'||event.key===' ')&&imageReady&&!exporting){event.preventDefault();showImageSliders(true);}
+});
+document.addEventListener('click',event=>{if(!event.target.closest('#artworkContainer,.position-control'))showImageSliders(false);});
+document.addEventListener('keydown',event=>{if(event.key==='Escape')showImageSliders(false);});
 async function setImage(src) {
+ showImageSliders(false);
  $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;renderImageBackground();$('download').disabled=true;$('downloadVideo').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
  try {
   let blob;
@@ -329,3 +343,5 @@ $('downloadVideo').onclick=async()=>{
 new ResizeObserver(scale).observe(document.querySelector('.controls'));
 window.visualViewport?.addEventListener('resize',scale);
 window.addEventListener('resize',scale);document.fonts.ready.then(scale);scale();
+$('previewDate').textContent='Loading latest story…';$('imageHint').textContent='Loading the latest published article from Notion…';
+loadArticles(true);
