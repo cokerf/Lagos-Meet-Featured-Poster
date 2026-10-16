@@ -247,9 +247,17 @@ async function capturePoster(hideDate=false) {
    }});
 
 }
+function exportFilename(creator,title,extension) {
+ const prefix='Project of the Day'+(creator?.trim()?' by '+creator.trim():'');
+ const raw=prefix+' - '+(title?.trim()||'Untitled story');
+ let name=raw.normalize('NFC').replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,'-').replace(/\s+/g,' ').trim().replace(/[. ]+$/,'');
+ const chars=Array.from(name),encoder=new TextEncoder();
+ while(encoder.encode(chars.join('')+'.'+extension).length>240)chars.pop();
+ return chars.join('').replace(/[. ]+$/,'')+'.'+extension;
+}
 function downloadBlob(blob,extension) {
  const link=document.createElement('a'),url=URL.createObjectURL(blob);
- link.href=url;link.download='LagosMeet-'+format+'-'+(selected?.id||Date.now())+'.'+extension;
+ link.href=url;link.download=exportFilename(selected?.creator,$('previewTitle').dataset.fullTitle||selected?.title||$('previewTitle').textContent,extension);
  link.click();setTimeout(()=>URL.revokeObjectURL(url),5000);
 }
 function setExportMenu(open){
