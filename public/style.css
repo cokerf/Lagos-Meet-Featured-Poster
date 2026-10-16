@@ -126,3 +126,6 @@ dialog .story-card:hover{transform:translateY(-2px);border-color:var(--muted)}
 #imageBackground[hidden]{display:none}
 #postCard>.paper{position:relative;z-index:1}
 .controls #backgroundToggle[aria-pressed=true]{background:var(--accent);color:var(--accent-text)}
+
+/* Position controls appear only while editing the image crop. */
+.position-control[hidden]{display:none!important}
