@@ -132,3 +132,19 @@ dialog .story-card:hover{transform:translateY(-2px);border-color:var(--muted)}
 
 /* Keep the backdrop anchored when export removes the preview transform. */
 #postCard{position:relative;isolation:isolate}
+
+/* One export entry point, with formats in an upward-opening shelf. */
+.export-control{position:relative}
+.controls #exportTrigger{background:var(--accent);color:var(--accent-text);min-width:98px}
+.export-menu[hidden]{display:none}
+.export-menu{position:absolute;right:0;bottom:calc(100% + 14px);width:235px;border:1px solid var(--border);border-radius:18px;padding:7px;background:var(--panel);box-shadow:0 16px 45px #0003;backdrop-filter:blur(18px)}
+.controls .export-menu button{display:flex;width:100%;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;border-radius:12px;padding:14px;background:transparent!important;color:var(--app-text)!important}
+.controls .export-menu button:hover{background:var(--hover)!important}
+.export-menu strong{font-weight:500;font-size:13px}
+.export-menu small{font-size:11px;color:var(--muted)}
+#colourSwatch{overflow:hidden}
+.background-option{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:12px 0;margin-bottom:16px;border-radius:0;background:transparent!important;color:var(--app-text);font-size:12px}
+.toggle-track{width:36px;height:22px;border-radius:20px;background:var(--border);padding:3px;transition:background .2s}
+.toggle-track::after{content:'';display:block;width:16px;height:16px;border-radius:50%;background:white;box-shadow:0 1px 4px #0003;transition:transform .2s}
+.background-option[aria-pressed=true] .toggle-track{background:#7a7a7a}
+.background-option[aria-pressed=true] .toggle-track::after{transform:translateX(14px)}
