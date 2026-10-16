@@ -119,3 +119,10 @@ dialog .story-card:hover{transform:translateY(-2px);border-color:var(--muted)}
 #pageLabel{color:var(--muted);text-align:center}
 @media(max-width:700px){.story-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.search-row{flex-wrap:wrap}.search-row #search{flex-basis:100%}dialog .story-card{padding:8px}}
 @media(max-width:360px){.story-grid{gap:8px}.story-card .story-title{font-size:11px}#articlePages button{padding:10px;font-size:11px}}
+
+/* Truncate actual text to full lines; padding cannot expose a fourth line. */
+#previewTitle,.landscape #previewTitle,.story #previewTitle{display:block;-webkit-line-clamp:unset;padding-bottom:0;flex-shrink:0}
+#imageBackground{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#imageBackground[hidden]{display:none}
+#postCard>.paper{position:relative;z-index:1}
+.controls #backgroundToggle[aria-pressed=true]{background:var(--accent);color:var(--accent-text)}
