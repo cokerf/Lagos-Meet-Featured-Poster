@@ -12,7 +12,7 @@ export default async request => {
       sorts:[{property:fields.date,direction:'descending'}]
     });
     return json({articles:data.results.filter(p => eligible(p)).map(p => ({
-      id:p.id, title:text(p.properties[fields.title]), date:p.properties[fields.date].date.start,
+      id:p.id, title:text(p.properties[fields.title]), creator:text(p.properties["Creator's Name"]), date:p.properties[fields.date].date.start,
       image:`/.netlify/functions/image?id=${encodeURIComponent(p.id)}`
     })), nextCursor:data.has_more ? data.next_cursor : null});
   } catch(e) { return json({error:e.message},502); }
