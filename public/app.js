@@ -60,7 +60,11 @@ function coverCrop(sourceWidth, sourceHeight, targetWidth, targetHeight, x=50, y
  const width=Math.min(sourceWidth,targetWidth/ratio),height=Math.min(sourceHeight,targetHeight/ratio);
  return [(sourceWidth-width)*x/100,(sourceHeight-height)*y/100,width,height];
 }
-function dateLabel(date) {return new Intl.DateTimeFormat('en-GB',{day:'numeric',month:'long',year:'numeric',timeZone:'Africa/Lagos'}).format(new Date(date.length===10?date+'T12:00:00+01:00':date));}
+function dateLabel(date) {
+ const parts=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'Africa/Lagos'}).formatToParts(new Date(date.length===10?date+'T12:00:00+01:00':date));
+ const value=type=>parts.find(part=>part.type===type).value;
+ return value('month')+' '+value('day')+' '+value('year');
+}
 function storyPage(items,page,size=12){
  const count=Math.max(1,Math.ceil(items.length/size)),index=Math.max(0,Math.min(page,count-1));
  return {items:items.slice(index*size,(index+1)*size),index,count};
