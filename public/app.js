@@ -218,7 +218,12 @@ async function capturePoster(hideDate=false) {
   return await html2canvas($('postCard'),{scale:1,width,height,useCORS:true,allowTaint:false,logging:false,
    onclone:doc=>{
     if(hideDate)doc.getElementById('previewDate').style.visibility='hidden';
-    const card=doc.getElementById('postCard');card.style.transform='none';card.classList.add('is-exporting');
+    const card=doc.getElementById('postCard');card.style.transform='none';card.style.position='relative';card.style.width=width+'px';card.style.height=height+'px';card.classList.add('is-exporting');
+    const background=doc.getElementById('imageBackground');
+    if(background&&!background.hidden){
+     // Do not resolve percentages against the smaller preview wrapper.
+     Object.assign(background.style,{position:'absolute',left:'0px',top:'0px',right:'auto',bottom:'auto',width:width+'px',height:height+'px'});
+    }
     for(const id of ['previewTitle','previewDate']){
      const element=doc.getElementById(id);element.style.color='#000000';element.style.webkitTextFillColor='#000000';
     }
