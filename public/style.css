@@ -202,3 +202,7 @@ main{padding:24px 16px;min-height:100dvh;align-items:center}
 #preferencesMenu .formats button::after{bottom:auto;top:calc(100% + 3px)}
 /* Colour editor stays on screen beside the contextual menu. */
 .colour-panel{z-index:35}
+
+/* Keep export choices visible inside the scrollable preferences menu. */
+#preferencesMenu .export-menu{position:static;width:100%;margin-top:7px;box-shadow:none;backdrop-filter:none}
+#preferencesMenu .export-control{display:block}
