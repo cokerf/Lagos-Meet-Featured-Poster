@@ -187,17 +187,18 @@ async function setImage(src) {
   $('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
   let objectURL;
   try {
-    let blob;
-    if(src instanceof Blob) blob=src;
-    else {
-      const response=await fetch(src,{cache:'no-store'});
-      if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(data?.error||'Cover media failed to load');}
-      blob=await response.blob();
+    const isRemote=!(src instanceof Blob);
+    // Discover media type without downloading the complete video into memory.
+    let remoteType='';
+    if(isRemote){
+      const head=await fetch(src,{method:'HEAD',cache:'no-store'});
+      if(!head.ok){let data;try{data=await head.json();}catch{}throw new Error(data?.error||'Cover media failed to load');}
+      remoteType=(head.headers.get('content-type')||'').split(';')[0].toLowerCase();
     }
-    if(ticket!==generation)return;
-    objectURL=URL.createObjectURL(blob);
-    if(blob.type.startsWith('video/')){
-      video.src=objectURL;
+    const isVideo=isRemote?remoteType.startsWith('video/'):src.type.startsWith('video/');
+    if(isVideo){
+      video.src=isRemote?src:URL.createObjectURL(src);
+      if(!isRemote)objectURL=video.src;
       await new Promise((resolve,reject)=>{
         video.onloadeddata=resolve;
         video.onerror=()=>reject(new Error('This browser cannot decode the cover video'));
@@ -218,17 +219,24 @@ async function setImage(src) {
       activeObjectURL=snapshotURL;
       coverIsVideo=true;
       video.hidden=false;
-      video.play().catch(()=>{}); // Muted autoplay is supported in modern browsers.
-      // The snapshot stays available for still exports and cover-colour sampling.
-      objectURL=null; // The video element retains ownership of its object URL.
-    }else if(blob.type.startsWith('image/')){
+      video.play().catch(()=>{});
+      objectURL=null;
+    }else{
+      let blob=src;
+      if(isRemote){
+        const response=await fetch(src,{cache:'no-store'});
+        if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(data?.error||'Cover image failed to load');}
+        blob=await response.blob();
+      }
+      if(!blob.type.startsWith('image/'))throw new Error('Cover must be an image or video');
+      objectURL=URL.createObjectURL(blob);
       const image=$('previewImage');
       image.src=objectURL;await image.decode();
       if(ticket!==generation)return;
       if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);
       activeObjectURL=objectURL;objectURL=null;
       image.style.display='block';
-    }else throw new Error('Cover must be an image or video');
+    }
     $('imageHint').style.display='none';imageReady=true;renderImageBackground();
     $('exportTrigger').disabled=false;$('download').disabled=false;$('downloadVideo').disabled=false;
     matchColour();
