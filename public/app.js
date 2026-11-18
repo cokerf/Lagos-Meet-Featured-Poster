@@ -1,6 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let articleView='grid', articlePage=0;
+let coverIsVideo = false;
 let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imageBackgroundEnabled=false, imagePosition={x:50,y:50};
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
@@ -175,18 +176,68 @@ $('artworkContainer').addEventListener('keydown',event=>{
 document.addEventListener('click',event=>{if(!event.target.closest('#artworkContainer,.position-control'))showImageSliders(false);});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')showImageSliders(false);});
 async function setImage(src) {
- showImageSliders(false);
- $('imageX').value=50;$('imageY').value=50;positionImage();const ticket=++generation;imageReady=false;renderImageBackground();$('exportTrigger').disabled=true;$('download').disabled=true;$('downloadVideo').disabled=true;$('previewImage').style.display='none';$('previewImage').removeAttribute('src');$('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
- try {
-  let blob;
-  if(src instanceof Blob)blob=src;
-  else {const response=await fetch(src,{cache:'no-store'});if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(data?.error||'Cover image failed to load');}blob=await response.blob();}
-  const objectURL=URL.createObjectURL(blob);const image=new Image();
-  try {image.src=objectURL;await image.decode();if(ticket!==generation)return;
-   if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);activeObjectURL=objectURL;$('previewImage').src=objectURL;await $('previewImage').decode();$('previewImage').style.display='block';$('imageHint').style.display='none';imageReady=true;renderImageBackground();$('exportTrigger').disabled=false;$('download').disabled=false;$('downloadVideo').disabled=false;matchColour();
-  }finally{if(activeObjectURL!==objectURL)URL.revokeObjectURL(objectURL);}
- }catch(error){if(ticket!==generation)return;$('imageHint').textContent=error.message;toast(error.message);}
+  showImageSliders(false);
+  $('imageX').value=50;$('imageY').value=50;positionImage();
+  const ticket=++generation;
+  imageReady=false;coverIsVideo=false;renderImageBackground();
+  $('exportTrigger').disabled=true;$('download').disabled=true;$('downloadVideo').disabled=true;
+  const video=$('previewVideo');
+  video.pause();video.hidden=true;video.removeAttribute('src');video.load();
+  $('previewImage').style.display='none';$('previewImage').removeAttribute('src');
+  $('imageHint').style.display='grid';$('imageHint').textContent='Loading cover…';
+  let objectURL;
+  try {
+    let blob;
+    if(src instanceof Blob) blob=src;
+    else {
+      const response=await fetch(src,{cache:'no-store'});
+      if(!response.ok){let data;try{data=await response.json();}catch{}throw new Error(data?.error||'Cover media failed to load');}
+      blob=await response.blob();
+    }
+    if(ticket!==generation)return;
+    objectURL=URL.createObjectURL(blob);
+    if(blob.type.startsWith('video/')){
+      video.src=objectURL;
+      await new Promise((resolve,reject)=>{
+        video.onloadeddata=resolve;
+        video.onerror=()=>reject(new Error('This browser cannot decode the cover video'));
+        video.load();
+      });
+      if(ticket!==generation)return;
+      const frame=document.createElement('canvas');
+      frame.width=video.videoWidth;frame.height=video.videoHeight;
+      if(!frame.width||!frame.height)throw new Error('Cover video has no decodable frame');
+      frame.getContext('2d').drawImage(video,0,0,frame.width,frame.height);
+      const snapshot=await new Promise(resolve=>frame.toBlob(resolve,'image/png'));
+      if(!snapshot)throw new Error('Unable to create a cover preview frame');
+      const snapshotURL=URL.createObjectURL(snapshot);
+      const image=$('previewImage');
+      image.src=snapshotURL;await image.decode();
+      if(ticket!==generation){URL.revokeObjectURL(snapshotURL);return;}
+      if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);
+      activeObjectURL=snapshotURL;
+      coverIsVideo=true;
+      video.hidden=false;
+      video.play().catch(()=>{}); // Muted autoplay is supported in modern browsers.
+      // The snapshot stays available for still exports and cover-colour sampling.
+      objectURL=null; // The video element retains ownership of its object URL.
+    }else if(blob.type.startsWith('image/')){
+      const image=$('previewImage');
+      image.src=objectURL;await image.decode();
+      if(ticket!==generation)return;
+      if(activeObjectURL)URL.revokeObjectURL(activeObjectURL);
+      activeObjectURL=objectURL;objectURL=null;
+      image.style.display='block';
+    }else throw new Error('Cover must be an image or video');
+    $('imageHint').style.display='none';imageReady=true;renderImageBackground();
+    $('exportTrigger').disabled=false;$('download').disabled=false;$('downloadVideo').disabled=false;
+    matchColour();
+  }catch(error){
+    if(ticket!==generation)return;
+    $('imageHint').textContent=error.message;toast(error.message);
+  }finally{if(objectURL)URL.revokeObjectURL(objectURL);}
 }
+
 async function selectArticle(article) {
  selected=article;$('previewTitle').dataset.fullTitle=article.title;$('previewTitle').textContent=article.title;clampHeadline();$('previewDate').textContent=dateLabel(article.date);$('articleDialog').close();
  await setImage(article.image); // Image endpoint re-fetches the page and fresh Notion file URL.
@@ -220,7 +271,7 @@ $('bgColor').oninput=event=>theme(event.target.value);
 $('artworkContainer').ondblclick=()=>$('imageUpload').click();
 $('postCard').ondblclick=event=>{if(event.target===$('postCard'))$('bgColor').click();};
 $('imageUpload').onchange=event=>{const file=event.target.files[0];if(file&&!exporting)setImage(file);event.target.value='';};
-window.addEventListener('dragover',event=>event.preventDefault());window.addEventListener('drop',event=>{event.preventDefault();const file=event.dataTransfer.files[0];if(!exporting&&file?.type.startsWith('image/'))setImage(file);});
+window.addEventListener('dragover',event=>event.preventDefault());window.addEventListener('drop',event=>{event.preventDefault();const file=event.dataTransfer.files[0];if(!exporting&&/^(image|video)\//.test(file?.type||''))setImage(file);});
 async function capturePoster(hideDate=false) {
   if(!window.html2canvas)throw new Error('Export library did not load. Check your connection and reload.');
   await document.fonts.ready;clampHeadline();renderImageBackground();await $('previewImage').decode();const [width,height]=dimensions[format];
