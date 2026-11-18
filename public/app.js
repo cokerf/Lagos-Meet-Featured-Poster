@@ -1,7 +1,7 @@
 'use strict';
 const $ = id => document.getElementById(id);
 let articleView='grid', articlePage=0;
-let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imageBackgroundEnabled=true, imagePosition={x:50,y:50};
+let articles = [], selected = null, format = 'portrait', imageReady = false, loading = false, generation = 0, toastTimer, activeObjectURL, exporting=false, imageBackgroundEnabled=false, imagePosition={x:50,y:50};
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
 function scale() {
