@@ -206,3 +206,7 @@ main{padding:24px 16px;min-height:100dvh;align-items:center}
 /* Keep export choices visible inside the scrollable preferences menu. */
 #preferencesMenu .export-menu{position:static;width:100%;margin-top:7px;box-shadow:none;backdrop-filter:none}
 #preferencesMenu .export-control{display:block}
+
+/* Cover videos fill the same crop as image covers without changing the poster layout. */
+#previewVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;object-position:center}
+#previewVideo[hidden]{display:none!important}
