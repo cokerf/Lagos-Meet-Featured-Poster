@@ -34,7 +34,7 @@ export default async request => {
         return json({error:'Media host is not allowed. Add its exact hostname to IMAGE_ALLOWED_HOSTS in Netlify.'},422);
       }
       media = await fetch(url, {
-        method:request.method,
+        method:'GET',
         redirect:'manual',
         headers: range && /^bytes=\d*-\d*$/.test(range) ? {Range:range} : {},
         signal:AbortSignal.timeout(30000)
@@ -59,6 +59,7 @@ export default async request => {
       if (value) headers.set(key,value);
     }
     // Stream the original asset: never impose a 4 MB cap or buffer it in memory.
-    return new Response(request.method === 'HEAD' ? null : media.body, {status:media.status,headers});
+    if(request.method === 'HEAD') { await media.body?.cancel(); return new Response(null,{status:media.status,headers}); }
+    return new Response(media.body, {status:media.status,headers});
   } catch(e) {return json({error:e.message},502);}
 };
