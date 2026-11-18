@@ -5,7 +5,7 @@ let articles = [], selected = null, format = 'portrait', imageReady = false, loa
 const dimensions = {portrait:[1080,1350],square:[1080,1080],landscape:[1080,565],story:[1080,1920]};
 function toast(message) { $('toast').textContent=message; $('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5500); }
 function scale() {
- const [w,h]=dimensions[format];const panelHeight=document.querySelector('.controls').getBoundingClientRect().height;document.documentElement.style.setProperty('--panel-space',(panelHeight+48)+'px');const width=Math.max(1,Math.min(innerWidth-100,520,Math.max(120,(window.visualViewport?.height||innerHeight)-panelHeight-140)*w/h));
+ const [w,h]=dimensions[format];document.documentElement.style.setProperty('--panel-space','24px');const width=Math.max(1,Math.min(innerWidth-32,Math.max(120,innerHeight-48)*w/h,720));
  $('previewWrapper').style.width=width+'px';$('previewWrapper').style.height=width*h/w+'px';
  $('postCard').style.width=w+'px';$('postCard').style.height=h+'px';$('postCard').style.transform=`scale(${width/w})`;
  clampHeadline();renderImageBackground();
@@ -196,7 +196,7 @@ function openArticlePicker() {
  if(!articles.length&&!loading)loadArticles();
  $('search').focus();
 }
-$('openArticles').onclick=openArticlePicker;
+$('openArticles').onclick=()=>{closePreferences();openArticlePicker();};
 $('posterSearch').onclick=openArticlePicker;
 const preferredMode=window.matchMedia('(prefers-color-scheme: dark)');
 let savedMode=null;
@@ -368,7 +368,37 @@ $('downloadVideo').onclick=async()=>{
   downloadBlob(new Blob([target.buffer],{type:'video/mp4'}),'mp4');toast('6-second MP4 exported');
  }catch(error){toast(error.message);}finally{if(encoder&&encoder.state!=='closed')encoder.close();exportLock(false);$('downloadVideo').innerHTML='<strong>MP4 video</strong><small>6-second animated poster</small>';}
 };
-new ResizeObserver(scale).observe(document.querySelector('.controls'));
+// Keep the interface off-canvas until the user asks for preferences.
+const preferencesMenu=$('preferencesMenu');
+function closePreferences(){
+ preferencesMenu.hidden=true;preferencesMenu.classList.remove('is-open');
+ preferencesMenu.setAttribute('aria-hidden','true');colourPanel(false);setExportMenu(false);
+}
+function openPreferences(x,y){
+ if(exporting)return;
+ preferencesMenu.hidden=false;preferencesMenu.classList.add('is-open');
+ preferencesMenu.setAttribute('aria-hidden','false');
+ const margin=12,rect=preferencesMenu.getBoundingClientRect();
+ preferencesMenu.style.left=Math.max(margin,Math.min(x,innerWidth-rect.width-margin))+'px';
+ preferencesMenu.style.top=Math.max(margin,Math.min(y,innerHeight-rect.height-margin))+'px';
+ preferencesMenu.style.bottom='auto';
+ preferencesMenu.style.transform='none';
+}
+document.addEventListener('contextmenu',event=>{
+ if(event.target.closest('input,textarea,[contenteditable="true"],[contenteditable="plaintext-only"]'))return;
+ event.preventDefault();openPreferences(event.clientX,event.clientY);
+});
+$('closePreferences').onclick=closePreferences;
+document.addEventListener('pointerdown',event=>{
+ if(!preferencesMenu.hidden&&!event.target.closest('#preferencesMenu,#colourPanel'))closePreferences();
+});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&!preferencesMenu.hidden)closePreferences();
+ if((event.key==='p'||event.key==='P')&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!['INPUT','TEXTAREA'].includes(document.activeElement?.tagName)&&!document.activeElement?.isContentEditable){
+  event.preventDefault();preferencesMenu.hidden?openPreferences(innerWidth/2-150,innerHeight/2-150):closePreferences();
+ }
+});
+
 window.visualViewport?.addEventListener('resize',scale);
 window.addEventListener('resize',scale);document.fonts.ready.then(scale);scale();
 $('previewDate').textContent='Loading latest story…';$('imageHint').textContent='Loading the latest published article from Notion…';
